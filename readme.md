@@ -57,5 +57,13 @@ To have a quick look, we saved the best model weight trained on the evaluated da
 
 - The datasets and more than 50% of the code are borrowed from TNet-ATT (Tang et.al, ACL2019).
 
-  
+## Citation
+```
+@article{zhong2022knowledge,
+  title={Knowledge Graph Augmented Network Towards Multiview Representation Learning for Aspect-based Sentiment Analysis},
+  author={Zhong, Qihuang and Ding, Liang and Liu, Juhua and Du, Bo and Jin, Hua and Tao, Dacheng},
+  journal={arXiv preprint arXiv:2201.04831},
+  year={2022}
+}
+```
 
