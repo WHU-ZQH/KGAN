@@ -18,7 +18,7 @@ ___
 * spacy 2.2.0
 * en_core_web_sm 2.1.0
 * GloVe.840B.300d
-* bert-base-uncased
+* [bert-base-uncased](https://huggingface.co/bert-base-uncased)
 
 ## Environment
 
