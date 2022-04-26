@@ -5,7 +5,7 @@ from model.ATAE_LSTM import ATAE_LSTM, ATAE_LSTM_Bert
 from model.GCAE import GCAE,  GCAE_Bert
 from model.RGAT import RGAT
 from model.ASGCN import ASGCN
-from model.KGNN import KGNN,KGNN2
+from model.KGNN import KGNN,KGNN2, KGNN_BERT
 from model.IAN import IAN
 from model.TNet import TNet_LF
 from utils import *
@@ -158,38 +158,37 @@ def train(args,times=0):
         best_index_acc + 1, max(result_store_test[0])*100, max(result_store_test[1])*100, avg_time))
     return max(result_store_test[0]), max(result_store_test[1]), avg_time
 
-def train_bert(args, path, is_save=False, is_bert=False):
-    dataset, n_train,n_test = build_dataset(args=args, is_bert=True)
-    load_path = path
-    save_path = 'model_weight/{}_{}.pth'.format(args.ds_name,args.model)
+def train_bert(args, path, is_save=False, is_bert=True):
+    if args.model == 'KGNN':
+        dataset, graph_embeddings, n_train, n_test = build_dataset(args=args, is_bert=True)
+    else:
+        dataset, n_train,n_test = build_dataset(args=args, is_bert=True)
+
     args.sent_len = len(dataset[0][0]['wids'])
     args.target_len = len(dataset[0][0]['tids'])
-
+    if args.model == 'KGNN':
+        args.graph_embeddings=graph_embeddings
     n_train_batches = math.ceil(n_train / args.bs)
     n_test_batches = math.ceil(n_test / args.bs)
     train_set,test_set = dataset
+    
     bert = BertModel.from_pretrained(r'../bert-base-uncased')
-    # model = ABGCNN_Bert(bert=bert)
-    model = GCAE_Bert(bert=bert)
-    # model = ATAE_LSTM_Bert(bert=bert)
+    if args.model =='ASGCN':
+        model=ASGCN_BERT(bert=bert,args=args)
+        _reset_params(model)
+    elif args.model =='KGNN':
+        model=KGNN_BERT(bert=bert,args=args)
+        _reset_params(model)
     if torch.cuda.is_available():
         model = model.cuda()
-    pretrained_dict1 = torch.load(load_path, map_location='cuda')
-    model_dict = model.state_dict()
-    pretrained_dict = {k: v for k, v in pretrained_dict1.items() if k in model_dict}
-    model_dict.update(pretrained_dict)
-    model.load_state_dict(model_dict)
-
-    model = torch.nn.DataParallel(model, device_ids=[0, 1])
+    # model = torch.nn.DataParallel(model, device_ids=[0, 1])
     train_time = []
     result_store_test = [[], []]
-    result_store_val = [[], []]
-    lr = args.learning_rate
-    params_1 = list(map(id, model.module.bert.parameters()))
-    base_params = filter(lambda p: id(p) not in params_1, model.module.parameters())
-    params_list = [{'params': base_params, 'lr': lr}, {'params': model.module.bert.parameters(), 'lr': lr}]
-    optimizer = torch.optim.Adagrad(params_list, lr=args.learning_rate)
+
+    optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=args.learning_rate)  #,weight_decay=0.0001
     model.train()
+    save_acc,save_f1=0.0,0.0
+
     for i in range(1, args.n_epoch + 1):
         beg = time.time()
         np.random.shuffle(train_set)
@@ -198,28 +197,35 @@ def train_bert(args, path, is_save=False, is_bert=False):
             model.train()
             optimizer.zero_grad()
             ######bert######
-            train_bert_token, train_bert_token_aspect, train_y, train_pw = get_batch_input_Bert(dataset=train_set,
-                                                                                                bs=args.bs, idx=j)
-            train_bert_token, train_bert_token_aspect, train_y, train_pw = torch.from_numpy(
-                train_bert_token), torch.from_numpy(
-                train_bert_token_aspect), torch.from_numpy(train_y).long(), torch.from_numpy(train_pw)
+            train_x, train_xt, train_y, train_pw, train_adj, train_mask = get_batch_input_bert(dataset=train_set, bs=args.bs,
+                                                                                          args=args, idx=j)
+            train_x, train_xt, train_y, train_pw, train_adj, train_mask = torch.from_numpy(train_x), torch.from_numpy(
+                train_xt), torch.from_numpy(train_y).long(), torch.from_numpy(train_pw), torch.from_numpy(
+                train_adj), torch.from_numpy(train_mask)
             if torch.cuda.is_available():
-                train_bert_token, train_bert_token_aspect, train_y, train_pw = train_bert_token.cuda(), train_bert_token_aspect.cuda(), train_y.cuda(), train_pw.cuda()
-            logit = model(train_bert_token, train_bert_token_aspect, train_pw)
-            ######bert######
+                train_x, train_xt, train_y, train_pw, train_adj, train_mask = train_x.cuda(), train_xt.cuda(), \
+                                                                              train_y.cuda(), train_pw.cuda(), train_adj.cuda(), train_mask.cuda()
+            logit = model(train_x, train_xt, train_pw, train_adj, train_mask)
             loss = F.cross_entropy(logit, train_y)
+            ######bert######
             loss.backward()
             optimizer.step()
             corrects = (torch.max(logit, 1)[1].view(train_y.size()).data == train_y.data).sum()
             accuracy = 100.0 * corrects / train_y.shape[0]
             f1 = metrics.f1_score(train_y.cpu(), torch.argmax(logit, -1).cpu(), labels=[0, 1, 2], average='macro')
-            # if j % 1 == 0:
             if j % (n_train_batches - 1) == 0:
-                eval_acc, eval_f1 = eval_bert(model, args, test_set,n_test_batches, is_bert=is_bert)
+            # if j % 10 == 0:
+                eval_acc, eval_f1 = eval_bert(model, args, test_set, n_test_batches)
                 if max_acc < eval_acc:
                     max_acc = eval_acc
+                if max_f1 < eval_f1:
+                    max_f1 = eval_f1
+
+                if save_acc < eval_acc:
+                    save_acc = eval_acc
+                    model_dict = model.state_dict()
                     if is_save:
-                        torch.save(model.module.state_dict(), save_path)
+                        torch.save(model_dict(), save_path)
                 if max_f1 < eval_f1:
                     max_f1 = eval_f1
             if j % 10 == 0:
@@ -321,15 +327,16 @@ def eval_bert(model, args, test_set, n_test_batches):
         loss = None
         for j in range(n_test_batches):
             ######bert######
-            train_bert_token, train_bert_token_aspect, test_y, train_pw = get_batch_input_Bert(dataset=test_set,
-                                                                                               bs=args.bs, idx=j)
-            train_bert_token, train_bert_token_aspect, test_y, train_pw = torch.from_numpy(
-                train_bert_token), torch.from_numpy(
-                train_bert_token_aspect), torch.from_numpy(test_y).long(), torch.from_numpy(train_pw)
+            test_x, test_xt, test_y, test_pw, test_adj, test_mask = get_batch_input_bert(
+                dataset=test_set, bs=args.bs, args=args, idx=j)
+            test_x, test_xt, test_y, test_pw, test_adj, test_mask = torch.from_numpy(test_x), torch.from_numpy(
+                test_xt), torch.from_numpy(test_y).long(), torch.from_numpy(test_pw), torch.from_numpy(
+                test_adj), torch.from_numpy(test_mask)
             if torch.cuda.is_available():
-                train_bert_token, train_bert_token_aspect, test_y, train_pw = train_bert_token.cuda(), train_bert_token_aspect.cuda(), test_y.cuda(), train_pw.cuda()
-            logit = model(train_bert_token, train_bert_token_aspect, train_pw)
-            loss = F.cross_entropy(logit, test_y, size_average=False)
+                test_x, test_xt, test_y, test_pw, test_adj, test_mask = test_x.cuda(), test_xt.cuda(), test_y.cuda(), test_pw.cuda(), \
+                                                                        test_adj.cuda(), test_mask.cuda()
+            logit= model(test_x, test_xt, test_pw, test_adj, test_mask)
+            loss = F.cross_entropy(logit, test_y, reduction='sum')
             avg_loss += loss.item()
             corrects += (torch.max(logit, 1)
                          [1].view(test_y.size()).data == test_y.data).sum()
@@ -340,7 +347,6 @@ def eval_bert(model, args, test_set, n_test_batches):
                 t_targets_all = torch.cat((t_targets_all, test_y), dim=0)
                 t_outputs_all = torch.cat((t_outputs_all, logit), dim=0)
         size = len(test_set)
-        avg_loss = loss.item() / size
         accuracy = 1.0 * corrects / size
         F1 = metrics.f1_score(t_targets_all.cpu(), torch.argmax(t_outputs_all, -1).cpu(), labels=[0, 1, 2],
                               average='macro')
