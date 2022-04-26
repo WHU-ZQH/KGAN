@@ -4,7 +4,8 @@ ___
 
 ## News
 26/4/2022
-* 
+
+* [Knowledge graph embeddings](https://drive.google.com/drive/folders/1JFh16NNac5KUHOy4Hd3GKLH6_hghhbHC?usp=sharing) is added. Additionally, we update the implementation of KGNN-BERT and ASGCN-BERT. The corresponding training code is also updated.
 ___
 
 ## Requirements
