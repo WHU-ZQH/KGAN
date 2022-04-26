@@ -436,43 +436,40 @@ def word2id(vocab, sent, max_len):
     return wids
  
 def get_embedding(vocab, ds_name, args):
-    emb_file = "/dat01/ZQH/glove.840B.300d.txt"
+    emb_file = "glove.840B.300d.txt"
     pkl = 'embeddings/%s_840B.pkl' % ds_name
     n_emb = 0
     graph_emb=0
-    if not os.path.exists(pkl):
-        embeddings = np.zeros((len(vocab)+1, args.dim_w), dtype='float32')
-        with open(emb_file, encoding='utf-8') as fp:
-            for line in fp:
-                eles = line.strip().split()
-                w = eles[0]
-                n_emb += 1
-                if w in vocab:
-                    try:
-                        embeddings[vocab[w]] = [float(v) for v in eles[1:]]
-                    except ValueError:
-                        pass
-        pickle.dump(embeddings, open(pkl, 'wb'))
-    else:
-        embeddings = pickle.load(open(pkl, 'rb'))
+    if types !='only_graph':
+        if not os.path.exists(pkl):
+            embeddings = np.zeros((len(vocab)+1, args.dim_w), dtype='float32')
+            with open(emb_file, encoding='utf-8') as fp:
+                for line in fp:
+                    eles = line.strip().split()
+                    w = eles[0]
+                    n_emb += 1
+                    if w in vocab:
+                        try:
+                            embeddings[vocab[w]] = [float(v) for v in eles[1:]]
+                        except ValueError:
+                            pass
+            pickle.dump(embeddings, open(pkl, 'wb'))
+        else:
+            embeddings = pickle.load(open(pkl, 'rb'))
 
-    if args.model =='KGNN':
+    if types == 'only_graph':
         if args.ds_name == '14semeval_laptop':
             graph_file = 'embeddings/entity_embeddings_analogy_400.txt'
-            # graph_file = '../numberbatch-en.txt'
-            # graph_file = 'embeddings/entity_embeddings_300.txt'
-            # graph_file = 'embeddings/entity_im_embeddings_200.txt'
-            # graph_file = 'embeddings/entity_embeddings_distmult_200.txt'
             graph_pkl = 'embeddings/%s_graph_analogy.pkl' % ds_name
-            # graph_pkl = 'embeddings/%s_graph_conceptnet.pkl' % ds_name
+            # graph_pkl = 'embeddings/%s_graph_analogy_roberta.pkl' % ds_name
         elif args.ds_name == '14semeval_rest':
             graph_file = 'embeddings/entity_embeddings_distmult_200.txt'
-            # graph_file = 'embeddings/entity_embeddings_analogy_400.txt'
             graph_pkl = 'embeddings/%s_graph_dismult.pkl' % ds_name
+            # graph_pkl = 'embeddings/%s_graph_dismult_roberta.pkl' % ds_name
         elif args.ds_name == 'Twitter':
             graph_file = 'embeddings/entity_embeddings_distmult_200.txt'
-            # graph_file = 'embeddings/entity_embeddings_analogy_400.txt'
             graph_pkl = 'embeddings/%s_graph_dismult.pkl' % ds_name
+
         if not os.path.exists(graph_pkl):
             graph_embeddings = np.zeros((len(vocab)+1, args.dim_k), dtype='float32')
             with open(graph_file, encoding='utf-8') as fp:
@@ -488,14 +485,22 @@ def get_embedding(vocab, ds_name, args):
             pickle.dump(graph_embeddings, open(graph_pkl, 'wb'))
         else:
             graph_embeddings = pickle.load(open(graph_pkl, 'rb'))
+    if types == 'only_graph':
+        return graph_embeddings
+    elif types == 'only_word':
+        return embeddings
+    elif types == 'all':
         return embeddings, graph_embeddings
     else:
-        return embeddings
+        print('error! Please input the correct types!')
 
 
 def build_dataset(args,is_bert=False):
     if is_bert:
-        dataset, vocab = load_data_bert(ds_name=args.ds_name)
+        if args.model in ['ASGCN','KGNN']:
+            dataset, vocab = load_data_dep_bert(ds_name=args.ds_name, is_bert = args.is_bert)
+        else:
+            dataset, vocab = load_data_bert(ds_name=args.ds_name)
     else:
         if args.model =='RGAT':
             dataset, vocab, dep_vocab = load_rgat_data(ds_name=args.ds_name)
@@ -505,33 +510,53 @@ def build_dataset(args,is_bert=False):
             dataset, vocab = load_data(ds_name=args.ds_name)
     n_train = len(dataset[0])
     n_test = len(dataset[1])
-    if is_bert is False:
-        if args.model =='KGNN':
-            embeddings,graph_embeddings = get_embedding(vocab, args.ds_name, args)
-        else:
-            embeddings = get_embedding(vocab, args.ds_name, args)
 
+    train_set = pad_dataset(dataset=dataset[0], bs=args.bs)
+    test_set = pad_dataset(dataset=dataset[1], bs=args.bs)
+
+    if is_bert is False:
+        embeddings = get_embedding(vocab, args.ds_name, args, types='only_word')
         for i in range(len(embeddings)):
             if i and np.count_nonzero(embeddings[i]) == 0:
                 embeddings[i] = np.random.uniform(-0.25, 0.25, embeddings.shape[1])
         embeddings = np.array(embeddings, dtype='float32')
-
-    train_set = pad_dataset(dataset=dataset[0], bs=args.bs)
-    test_set = pad_dataset(dataset=dataset[1], bs=args.bs)
-    if is_bert:
-        return [train_set,test_set], n_train,n_test
-    else:
-        if args.model =='KGNN':
+        if args.model == 'KGNN':
+            graph_embeddings = get_embedding(vocab, args.ds_name, args, types='only_graph')
             for i in range(len(graph_embeddings)):
                 if i and np.count_nonzero(graph_embeddings[i]) == 0:
                     graph_embeddings[i] = np.random.uniform(-0.25, 0.25, graph_embeddings.shape[1])
             graph_embeddings = np.array(graph_embeddings, dtype='float32')
-
             return [train_set, test_set], embeddings, graph_embeddings, n_train, n_test
         elif args.model =='RGAT':
             return [train_set,test_set], embeddings, n_train,n_test, dep_vocab
         else:
             return [train_set, test_set], embeddings, n_train, n_test
+    else:
+        if args.model == 'KGNN':
+            bert_vocab={}
+            if args.is_bert==1:
+                with open(r'bert-base-uncased/vocab.txt','r', encoding='utf-8') as f:
+                    for num,line in enumerate(f.readlines()):
+                        bert_vocab[line.strip()]=num
+            graph_embeddings = get_embedding(bert_vocab, args.ds_name, args, types='only_graph')
+            #### add noise in knowledge graph embeddings, if percent is not zero ###
+            percent=0.00
+            threshold=random.uniform(0,1)
+            noise=int(len(vocab)*percent)
+            noise_num=0
+            for i in range(len(graph_embeddings)):
+                if i and np.count_nonzero(graph_embeddings[i]) == 0:
+                    graph_embeddings[i] = np.random.uniform(-0.25, 0.25, graph_embeddings.shape[1])
+                elif random.uniform(0,1)<threshold and noise_num<noise:
+                    graph_embeddings[i] = np.random.uniform(-0.25, 0.25, graph_embeddings.shape[1])
+                    noise_num+=1
+                elif noise_num == noise:
+                    print('Introduce {} percent of noise'.format(percent))
+                    noise_num+=1
+            graph_embeddings = np.array(graph_embeddings, dtype='float32')
+            return [train_set, test_set], graph_embeddings, n_train, n_test
+        else:
+            return [train_set, test_set], n_train, n_test
 
 
 def calculate_position_weight(dataset,re_aspect=False):
