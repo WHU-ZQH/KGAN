@@ -135,13 +135,14 @@ class KGNN(nn.Module):
             output=torch.cat((output_xz.unsqueeze(2),output_yz.unsqueeze(2),output_xy.unsqueeze(2),output_xyz.unsqueeze(2)),dim=-1)
         output=self.conv(output).squeeze(2)
         # return output,output_yz,output_xz,output_xy
-        return output, alpha.squeeze(1), F.max_pool1d(score.transpose(1,2),score.shape[1]).squeeze(2), \
-               F.max_pool1d(knowledge_score.transpose(1,2),knowledge_score.shape[1]).squeeze(2)
+        # return output, alpha.squeeze(1), F.max_pool1d(score.transpose(1,2),score.shape[1]).squeeze(2), \
+        #        F.max_pool1d(knowledge_score.transpose(1,2),knowledge_score.shape[1]).squeeze(2)
 
         # return output,output_xy,output_xz,output_yz
         # out=torch.cat((x,y,z),dim=-1)
         # output=self.fc_out(out)
         # return output,x,y,z
+        return output
 
 class KGNN2(nn.Module):
     def __init__(self,  args):
@@ -234,7 +235,8 @@ class KGNN2(nn.Module):
         ######## feature fuse  #########
         out=torch.cat((x,y,z),dim=-1)
         output=self.fc(out)
-        return output, x, y, z
+        # return output, x, y, z
+        return output
 
     class KGNN_BERT(nn.Module):
     def __init__(self, bert, args):
