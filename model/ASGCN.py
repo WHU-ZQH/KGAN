@@ -66,7 +66,7 @@ class ASGCN(nn.Module):
         output = self.fc2(x)
         return output
 
-    class ASGCN_BERT(nn.Module):
+class ASGCN_BERT(nn.Module):
     def __init__(self, bert, args):
         super(ASGCN_BERT, self).__init__()
         self.args = args
