@@ -563,7 +563,7 @@ def word2id(vocab, sent, max_len):
         wids.append(0)
     return wids
  
-def get_embedding(vocab, ds_name, args):
+def get_embedding(vocab, ds_name, args, types):
     emb_file = "glove.840B.300d.txt"
     pkl = 'embeddings/%s_840B.pkl' % ds_name
     n_emb = 0
@@ -588,15 +588,24 @@ def get_embedding(vocab, ds_name, args):
     if types == 'only_graph':
         if args.ds_name == '14semeval_laptop':
             graph_file = 'embeddings/entity_embeddings_analogy_400.txt'
-            graph_pkl = 'embeddings/%s_graph_analogy.pkl' % ds_name
+            if args.is_bert==0:
+                graph_pkl = 'embeddings/%s_graph_analogy.pkl' % ds_name
+            else:
+                graph_pkl = 'embeddings/%s_graph_analogy_bert.pkl' % ds_name
             # graph_pkl = 'embeddings/%s_graph_analogy_roberta.pkl' % ds_name
         elif args.ds_name == '14semeval_rest':
             graph_file = 'embeddings/entity_embeddings_distmult_200.txt'
-            graph_pkl = 'embeddings/%s_graph_dismult.pkl' % ds_name
+            if args.is_bert==0:
+                graph_pkl = 'embeddings/%s_graph_dismult.pkl' % ds_name
+            else:
+                graph_pkl = 'embeddings/%s_graph_dismult_bert.pkl' % ds_name
             # graph_pkl = 'embeddings/%s_graph_dismult_roberta.pkl' % ds_name
         elif args.ds_name == 'Twitter':
             graph_file = 'embeddings/entity_embeddings_distmult_200.txt'
-            graph_pkl = 'embeddings/%s_graph_dismult.pkl' % ds_name
+            if args.is_bert==0:
+                graph_pkl = 'embeddings/%s_graph_dismult.pkl' % ds_name
+            else:
+                graph_pkl = 'embeddings/%s_graph_dismult_bert.pkl' % ds_name
 
         if not os.path.exists(graph_pkl):
             graph_embeddings = np.zeros((len(vocab)+1, args.dim_k), dtype='float32')
