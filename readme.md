@@ -2,6 +2,11 @@
 
 ___
 
+## News
+26/4/2022
+* 
+___
+
 ## Requirements
 
 * python 3.7
