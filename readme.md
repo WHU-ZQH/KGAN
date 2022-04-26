@@ -26,6 +26,7 @@ ___
 * raw data: "./dataset/"
 * processing data: "./dataset_npy/"
 * word embedding file: "./embeddings/"
+* Knowledge graph embedding file: download from [https://drive.google.com/drive/folders/1JFh16NNac5KUHOy4Hd3GKLH6_hghhbHC?usp=sharing]
 
 ## Training options
 
