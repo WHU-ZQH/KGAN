@@ -98,9 +98,9 @@ def train(args,times=0):
                 if torch.cuda.is_available():
                     train_x, train_xt, train_y, train_pw, train_adj, train_mask = train_x.cuda(), train_xt.cuda(), \
                                                                                                  train_y.cuda(), train_pw.cuda(), train_adj.cuda(), train_mask.cuda()
-                logit,logit2,logit3,logit4 = model(train_x, train_xt, train_pw, train_adj, train_mask)
+                # logit,logit2,logit3,logit4 = model(train_x, train_xt, train_pw, train_adj, train_mask)
                 # loss = F.cross_entropy(logit, train_y)+F.cross_entropy(logit2, train_y)+F.cross_entropy(logit3, train_y)+F.cross_entropy(logit4, train_y)
-                # logit = model(train_x, train_xt, train_pw, train_adj, train_mask)
+                logit = model(train_x, train_xt, train_pw, train_adj, train_mask)
                 loss = F.cross_entropy(logit, train_y)
             elif args.model =='RGAT':
                 optimizer.zero_grad()
@@ -262,10 +262,10 @@ def eval(model, args, test_set, n_test_batches):
                 if torch.cuda.is_available():
                     test_x, test_xt, test_y, test_pw, test_adj, test_mask= test_x.cuda(), test_xt.cuda(), test_y.cuda(), test_pw.cuda(), \
                                                                                          test_adj.cuda(), test_mask.cuda()
-                logit,logit2,logit3,logit4 = model(test_x, test_xt, test_pw, test_adj, test_mask)
+                # logit,logit2,logit3,logit4 = model(test_x, test_xt, test_pw, test_adj, test_mask)
                 # loss = F.cross_entropy(logit, test_y, reduction='sum')+0.1*F.cross_entropy(logit2, test_y, reduction='sum')+\
                 #        0.1*F.cross_entropy(logit3, test_y, reduction='sum')+0.1*F.cross_entropy(logit4, test_y, reduction='sum')
-                # logit = model(test_x, test_xt, test_pw, test_adj, test_mask)
+                logit = model(test_x, test_xt, test_pw, test_adj, test_mask)
                 loss = F.cross_entropy(logit, test_y, reduction='sum')
 
                 # with open('KGAN_restaurant_result.txt','a',encoding='utf-8') as f:
