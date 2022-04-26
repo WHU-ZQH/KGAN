@@ -374,6 +374,134 @@ def load_data_bert(ds_name):
     dataset = [train_set,test_set]
     return dataset, vocab
 
+def read_dep_bert(path, is_bert):
+    dataset = []
+    sid = 0  # id
+    with open(path, encoding='utf-8') as fp:
+        for line in fp:
+            record = {}
+            tokens = line.strip().split()
+            words, target_words = [], []
+            d = []
+            mask=[]
+            find_label = False
+            for t in tokens:
+                if '/p' in t or '/n' in t or '/0' in t:
+                    end = 'xx'
+                    y = 0
+                    if '/p' in t:
+                        end = '/p'
+                        y = 0
+                    elif '/n' in t:
+                        end = '/n'
+                        y = 1
+                    elif '/0' in t:
+                        end = '/0'
+                        y = 2
+                    words.append(t.strip(end))
+                    target_words.append(t.strip(end))
+                    mask.append(1)
+                    if not find_label:
+                        find_label = True
+                        record['y'] = y
+                        left_most = right_most = tokens.index(t)
+                    else:
+                        right_most += 1
+                else:
+                    words.append(t)
+                    mask.append(0)
+            if not find_label:
+                record['y'] = None
+            for pos in range(len(tokens)):
+                if pos < left_most:
+                    d.append(right_most - pos)
+                else:
+                    d.append(pos - left_most)
+            if is_bert ==1:
+                bert_sentence = ['[CLS]'] + bert_tokenizer.tokenize(' '.join(words.copy())) + ['[SEP]']
+                bert_aspect = ['[CLS]'] + bert_tokenizer.tokenize(' '.join(target_words.copy()))+ ['[SEP]']
+                record['bert_token']=bert_tokenizer.convert_tokens_to_ids(bert_sentence)
+                record['bert_token_aspect']=bert_tokenizer.convert_tokens_to_ids(bert_aspect)
+            elif is_bert ==2:
+                bert_sentence = ['<s>'] + roberta_tokenizer.tokenize(' '.join(words.copy())) + ['</s>']
+                bert_aspect = ['<s>'] + roberta_tokenizer.tokenize(' '.join(target_words.copy()))+ ['</s>']
+                record['bert_token']=roberta_tokenizer.convert_tokens_to_ids(bert_sentence)
+                record['bert_token_aspect']=roberta_tokenizer.convert_tokens_to_ids(bert_aspect)
+            record['sent'] = line.strip()
+            record['words'] = words.copy()
+            record['twords'] = target_words.copy()
+            record['adj'] = process_graph(' '.join(bert_sentence.copy()))
+            record['mask']=mask
+            record['mask'].append(0)
+            record['mask'].insert(0,0)
+            record['bert_len']=len(record['bert_token'])
+            record['bert_as_len']=len(record['bert_token_aspect'])
+            record['dist'] = d.copy()
+            record['dist'].append(-1)
+            record['dist'].insert(0,-1)
+            record['sid'] = sid
+            record['beg'] = left_most
+            record['end'] = right_most + 1
+            sid += 1
+            if record['y'] is not None:
+                dataset.append(record)
+    return dataset
+
+def load_data_dep_bert(ds_name, is_bert):
+    if is_bert ==1:
+        data_npz = 'dataset_npy/dataset_%s_dep_bert.npz' % ds_name
+        vocab_npy = 'dataset_npy/vocab_%s_dep_bert.npy' % ds_name
+    elif is_bert ==2:
+        data_npz = 'dataset_npy/dataset_%s_dep_roberta.npz' % ds_name
+        vocab_npy = 'dataset_npy/vocab_%s_dep_roberta.npy' % ds_name
+    if not os.path.exists(data_npz):
+        train_file = './dataset/%s/train.txt' % ds_name
+        test_file = './dataset/%s/test.txt' % ds_name
+        train_set = read_dep_bert(path=train_file, is_bert=is_bert)
+        test_set = read_dep_bert(path=test_file, is_bert=is_bert)
+
+        #######bert######
+        train_bert_len = [t['bert_len'] for t in train_set]
+        test_bert_len = [t['bert_len'] for t in test_set]
+        max_bert_len = max(train_bert_len) if max(train_bert_len) > max(test_bert_len) else max(test_bert_len)
+        train_bert_as_len = [t['bert_as_len'] for t in train_set]
+        test_bert_as_len = [t['bert_as_len'] for t in test_set]
+        max_bert_as_len = max(train_bert_as_len) if max(train_bert_as_len) > max(test_bert_as_len) else max(test_bert_as_len)
+        print(max_bert_len,max_bert_as_len)
+        num1 = len(train_set)
+        num2=len(test_set)
+        for i in range(num1):
+            train_set[i]['bert_token'].extend([0] * (max_bert_len - len(train_set[i]['bert_token'])))
+            train_set[i]['bert_token_aspect'].extend([0] * (max_bert_as_len - len(train_set[i]['bert_token_aspect'])))
+        for i in range(num2):
+            test_set[i]['bert_token'].extend([0] * (max_bert_len - len(test_set[i]['bert_token'])))
+            test_set[i]['bert_token_aspect'].extend([0] * (max_bert_as_len - len(test_set[i]['bert_token_aspect'])))
+        #######bert######
+
+        train_set = pad_seq(dataset=train_set, field='dist', max_len=max_bert_len, symbol=-1)
+        test_set = pad_seq(dataset=test_set, field='dist', max_len=max_bert_len, symbol=-1)
+        train_set = pad_seq(dataset=train_set, field='adj', max_len=max_bert_len, symbol=-1)
+        test_set = pad_seq(dataset=test_set, field='adj', max_len=max_bert_len, symbol=-1)
+        train_set = pad_seq(dataset=train_set, field='mask', max_len=max_bert_len, symbol=0)
+        test_set = pad_seq(dataset=test_set, field='mask', max_len=max_bert_len, symbol=0)
+        train_set = calculate_position_weight(dataset=train_set)
+        test_set = calculate_position_weight(dataset=test_set)
+        vocab = build_vocab(dataset=train_set + test_set)
+        train_set = set_wid(dataset=train_set, vocab=vocab, max_len=max_bert_len)
+        test_set = set_wid(dataset=test_set, vocab=vocab, max_len=max_bert_len)
+        train_set = set_tid(dataset=train_set, vocab=vocab, max_len=max_bert_as_len)
+        test_set = set_tid(dataset=test_set, vocab=vocab, max_len=max_bert_as_len)
+        dataset = [train_set,test_set]
+        np.savez(data_npz, train=train_set, test=test_set)
+        np.save(vocab_npy, vocab)
+    else:
+        dataset = np.load(data_npz, allow_pickle=True)
+        train_set, test_set = dataset['train'], dataset['test']
+        train_set, test_set = train_set.tolist(), test_set.tolist()
+        dataset = [train_set, test_set]
+        vocab = np.load(vocab_npy, allow_pickle=True).tolist()
+    return dataset, vocab
+
 def build_vocab(dataset):
     vocab = {}
     idx = 1
