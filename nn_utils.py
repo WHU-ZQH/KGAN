@@ -53,13 +53,18 @@ def get_batch_input_inference(dataset, bs, args, idx=None,all=False):
                 print(batch_data[key].values)
     return batch_input_var
 
-def get_batch_input_Bert(dataset, bs, idx=None, all=False):
-    if all:
+def get_batch_input_bert(dataset, bs, args, idx=None,all=False):
+    if all :
         batch_input = dataset
     else:
-        batch_input = dataset[idx * bs:(idx + 1) * bs]
+        batch_input = dataset[idx*bs:(idx+1)*bs]
     batch_data = pd.DataFrame.from_dict(batch_input)
-    target_fields = ['bert_token', 'bert_token_aspect', 'y', 'pw']
+    if args.model == 'RGAT':
+        target_fields = [ 'bert_token', 'bert_token_aspect', 'dep_tag_ids', 'y', 'pw']
+    elif args.model in ['ASGCN','KGNN']:
+        target_fields = [ 'bert_token', 'bert_token_aspect', 'y', 'pw', 'adj', 'mask']
+    else:
+        target_fields = ['bert_token', 'bert_token_aspect', 'y', 'pw']
     batch_input_var = []
     for key in target_fields:
         data = list(batch_data[key].values)
