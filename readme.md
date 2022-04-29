@@ -1,4 +1,4 @@
-# KGAN: Knowledge Graph Augmented Network Towards Multi-level Representation Learning for Aspect-based Sentiment Analysis
+# KGAN: Knowledge Graph Augmented Network Towards Multi-view Representation Learning for Aspect-based Sentiment Analysis
 
 ___
 
