@@ -5,7 +5,7 @@ ___
 ## News
 6/3/2023
 
-* Our paper has been accepted by IEEE Transactions on Knowledge and Data Engineering. [paper] (https://ieeexplore.ieee.org/document/10056277)
+* Our paper has been accepted by IEEE Transactions on Knowledge and Data Engineering. [paper](https://ieeexplore.ieee.org/document/10056277)
 
 26/4/2022
 
