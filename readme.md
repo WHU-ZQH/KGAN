@@ -3,6 +3,10 @@
 ___
 
 ## News
+6/3/2023
+
+* Our paper has been accepted by IEEE Transactions on Knowledge and Data Engineering. [paper] (https://ieeexplore.ieee.org/document/10056277)
+
 26/4/2022
 
 * [Knowledge graph embeddings](https://drive.google.com/drive/folders/1JFh16NNac5KUHOy4Hd3GKLH6_hghhbHC?usp=sharing) is added. Additionally, we update the implementation of KGNN-BERT and ASGCN-BERT. The corresponding training code is also updated.
@@ -67,10 +71,12 @@ To have a quick look, we saved the best model weight trained on the evaluated da
 ## Citation
 ```
 @article{zhong2022knowledge,
-  title={Knowledge Graph Augmented Network Towards Multiview Representation Learning for Aspect-based Sentiment Analysis},
+  title={Knowledge Graph Augmented Network Towards Multiview Representation Learning for Aspect-based Sentiment Analysis}, 
   author={Zhong, Qihuang and Ding, Liang and Liu, Juhua and Du, Bo and Jin, Hua and Tao, Dacheng},
-  journal={arXiv preprint arXiv:2201.04831},
-  year={2022}
-}
+  journal={IEEE Transactions on Knowledge and Data Engineering}, 
+  year={2023},
+  pages={1-14},
+  doi={10.1109/TKDE.2023.3250499}
+  }
 ```
 
