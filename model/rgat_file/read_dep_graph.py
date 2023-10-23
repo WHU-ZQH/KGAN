@@ -14,7 +14,7 @@ class WhitespaceTokenizer(object):
         spaces = [True] * len(words)
         return Doc(self.vocab, words=words, spaces=spaces)
 
-nlp = spacy.load('en_core_web_sm')
+nlp = spacy.load('en_core_web_lg')
 nlp.tokenizer = WhitespaceTokenizer(nlp.vocab)
 
 
@@ -79,39 +79,22 @@ def dependency_adj_matrix(text):
     matrix = np.zeros((len(words), len(words))).astype('float32')
     assert len(words) == len(list(tokens))
 
-    for token in tokens:
+    for num,token in enumerate(tokens):
         matrix[token.i][token.i] = 1
-        for child in token.children:
-            matrix[token.i][child.i] = 1
-            matrix[child.i][token.i] = 1
+        if num!=0 and num!=(len(tokens)-1):
+            for child in token.children:
+                if child.string != '[CLS] ' and child.string != '[SEP]':
+                    matrix[token.i][child.i] = 1
+                    matrix[child.i][token.i] = 1
     return matrix
 
-# def knowledge_adj_matrix2(text):
-#     tokens = nlp(text)
-#     words = text.split()
-#     tags=[]
-#     matrix=[[]]
-#     for word in tokens:
-#         matrix[word][word] = 1
-#         semantic_tag=senticnet[word][:-5]
-#         mood_tag=senticnet[word][4,5]
-#         for i in semantic_tag:
-#             matrix[word][i] = 1
-#             matrix[i][word] = 1
-#         for i in mood_tag:
-#             i=i.replace('#','')
-#             matrix[word][i] = 1
-#             matrix[i][word] = 1
-#
-#     matrix = np.zeros((len(words), len(words))).astype('float32')
-#     assert len(words) == len(list(tokens))
-#     return matrix
 
 def knowledge_adj_matrix(text):
     tokens = nlp(text)
     words = text.split()
     assert len(words) == len(list(tokens))
     tags={}
+    tag={}
     num=len(words)
     for token in tokens:
         try:
@@ -119,26 +102,21 @@ def knowledge_adj_matrix(text):
                 if sem not in tags.keys():
                     tags[sem]=num
                     num+=1
-            for mod in [senticnet[token.text][4].replace('#',''),senticnet[token.text][5].replace('#','')]:
-                if mod not in tags.keys():
-                    tags[mod] = num
-                    num+=1
-            tag=senticnet[token.text][8:]+[senticnet[token.text][4].replace('#',''),senticnet[token.text][5].replace('#','')]
+            tag[token]=senticnet[token.text][8:]
         except KeyError:
             continue
     matrix = np.zeros((len(words)+len(tags.keys()), len(words)+len(tags.keys()))).astype('float32')
     for token in tokens:
         matrix[token.i][token.i] = 1
-        for t in tag:
-            matrix[token.i][tags[t]] = 1
-            matrix[tags[t]][token.i] = 1
-    return matrix
+        if token in tag.keys():
+            for t in tag[token]:
+                if t != '[CLS] ' and t != '[SEP]':
+                    matrix[token.i][tags[t]] = 1
+                    matrix[tags[t]][token.i] = 1
+    return matrix, words+list(tags.keys())
 
 def process_graph(text):
     syntactic_adj_matrix = dependency_adj_matrix(text)
-    # common_adj_matrix = knowledge_adj_matrix(text)
-    return  syntactic_adj_matrix
+    common_adj_matrix, words_know = knowledge_adj_matrix(text)
+    return  syntactic_adj_matrix, common_adj_matrix, words_know
 
-# dependency_adj_matrix(('The apple is good'))
-# # knowledge_adj_matrix('The apple is good')
-# get_senticnet_tree()
