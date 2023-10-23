@@ -40,9 +40,10 @@ ___
 
 ## Training options
 
-- **ds_name**: the name of target dataset, ['14semeval_laptop', '14semeval_rest'], default='14semeval_rest'
+- **ds_name**: the name of target dataset, ['14semeval_laptop','14semeval_rest','15semeval_rest','16semeval_rest','Twitter'], default='14semeval_rest'
 - **bs**: batch size to use during training, [32, 64], default=64
 - **learning_rate**: learning rate to use, [0.001, 0.0005], default=0.001
+- **dropout_rate**: dropout rate for sentimental features, [0.1, 0.3, 0.5], default=0.05
 - **n_epoch**: number of epoch to use, default=20
 - **model**: the name of model, default='KGNN'
 - **dim_w**: the dimension of word embeddings, default=300
@@ -50,12 +51,16 @@ ___
 - **is_test**:  train or test the model, [0, 1], default=1
 - **is_bert**: GloVe-based or BERT-based, [0, 1], default=0
 
+More training options can be found in "./main_total.py".
+
 ## Running
 
 #### training based on GloVe: 
 
 * python ./main.py   -ds_name 14semeval_laptop   -bs 32   -learning_rate 0.001   -n_epoch 20   -model KGNN -dim_w 300 -dim_k 400  -is_test 0   -is_bert 0
 * python ./main.py   -ds_name 14semeval_rest   -bs 64   -learning_rate 0.001   -n_epoch 20   -model KGNN -dim_w 300 -dim_k 200  -is_test 0   -is_bert 0
+
+The detailed training scripts can be found in "./scripts".
 
 ## Evaluation
 
